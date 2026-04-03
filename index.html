@@ -736,6 +736,39 @@ body {
   cursor: pointer;
   color: var(--text);
 }
+
+/* IMAGE VIEWER MODAL */
+.image-viewer-overlay {
+  display: none;
+  position: fixed;
+  z-index: 200;
+  left: 0;
+  top: 0;
+  width: 100%;
+  height: 100%;
+  overflow: auto;
+  background-color: rgba(26,24,20,0.9);
+  align-items: center;
+  justify-content: center;
+}
+
+.image-viewer-content {
+  margin: auto;
+  display: block;
+  max-width: 90%;
+  max-height: 90%;
+}
+
+.image-viewer-close {
+  position: absolute;
+  top: 15px;
+  right: 35px;
+  color: #f1f1f1;
+  font-size: 40px;
+  font-weight: bold;
+  transition: 0.3s;
+  cursor: pointer;
+}
 </style>
 </head>
 <body>
@@ -769,6 +802,7 @@ body {
       <span class="pill">Resterend: <strong id="stat-left">0</strong></span>
     </div>
     <div class="topbar-actions">
+      <button class="top-btn" onclick="showIndicatorInfo()">Info</button>
       <button class="top-btn" onclick="showProgress()">Voortgang</button>
       <button class="top-btn" onclick="document.getElementById('file-input2').click()">+ Toevoegen</button>
       <button class="top-btn primary" onclick="exportCSV()">&#8595; Export CSV</button>
@@ -804,34 +838,50 @@ body {
   </div>
 </div>
 
+<!-- Indicator info modal -->
+<div class="progress-overlay" id="info-overlay" onclick="if(event.target===this)closeIndicatorInfo()">
+  <div class="progress-modal" style="max-width: 600px;">
+    <div class="progress-title">Indicator Informatie</div>
+    <div id="info-list"></div>
+    <button class="close-btn" onclick="closeIndicatorInfo()">Sluiten</button>
+  </div>
+</div>
+
+<!-- Image viewer modal -->
+<div id="image-viewer" class="image-viewer-overlay" onclick="closeImageViewer()">
+  <span class="image-viewer-close">&times;</span>
+  <img class="image-viewer-content" id="full-image">
+</div>
+
 <input type="file" id="file-input2" multiple accept="image/*" style="display:none" onchange="loadImages(this)">
 
 <script>
 const INDICATORS = [
-  {
-    group: "A — Structurele heterogeniteit",
-    items: [
-      { code: "A1", name: "Structurele maturiteit", desc: "Stamdiameter-variatie en grote/oude bomen" },
-      { code: "A2", name: "Verticale gelaagdheid", desc: "Struik- en kruidlaag naast kanopij" },
-      { code: "A3", name: "Ruimtelijke regelmaat", desc: "Rechte rijen (0) vs. volledig onregelmatig (3)" },
-      { code: "A4", name: "Kroonbedekking / gaten", desc: "Uniforme gesloten kroon (0) vs. meerdere gaten (3)" }
-    ]
-  },
-  {
-    group: "B — Soortensamenstelling",
-    items: [
-      { code: "B1", name: "Boomsoortendiversiteit", desc: "Monospecifiek (0) vs. 3+ herkenbare soorten (3)" }
-    ]
-  },
-  {
-    group: "C — Dood hout",
-    items: [
-      { code: "C1", name: "Dood hout", desc: "Geen dood hout (0) vs. meerdere vormen en stadia (3)" }
-    ]
-  }
-];
+      {
+        group: "A — Structurele heterogeniteit",
+        items: [
+          { code: "A1", name: "Structurele maturiteit", desc: "Stamdiameter-variatie en grote/oude bomen", scores: ["0 = uniform", "1 = lichte variatie", "2 = duidelijke variatie", "3 = grote spreiding + oude bomen"] },
+          { code: "A2", name: "Verticale gelaagdheid", desc: "Struik- en kruidlaag naast kanopij", scores: ["0 = enkelvoudige laag", "1 = sporadisch lage struiken", "2 = twee duidelijke lagen", "3 = drie of meer lagen"] },
+          { code: "A3", name: "Ruimtelijke regelmaat", desc: "Rechte rijen (0) vs. volledig onregelmatig (3)", scores: ["0 = strikte rijen zichtbaar", "1 = overwegend regelmatig", "2 = rijen niet herkenbaar", "3 = volledig onregelmatig"] },
+          { code: "A4", name: "Kroonbedekking / gaten", desc: "Uniforme gesloten kroon (0) vs. meerdere gaten (3)", scores: ["0 = volledig gesloten uniform", "1 = overwegend gesloten", "2 = meerdere gaten", "3 = meerdere duidelijke gaten"] }
+        ]
+      },
+      {
+        group: "B — Soortensamenstelling",
+        items: [
+          { code: "B1", name: "Boomsoortendiversiteit", desc: "Monospecifiek (0) vs. 3+ herkenbare soorten (3)", scores: ["0 = één soort dominant", "1 = één dominant, sporadisch andere", "2 = twee soorten duidelijk", "3 = drie of meer soorten"] }
+        ]
+      },
+      {
+        group: "C — Dood hout",
+        items: [
+          { code: "C1", name: "Dood hout", desc: "Geen dood hout (0) vs. meerdere vormen en stadia (3)", scores: ["0 = geen dood hout", "1 = één stuk", "2 = meerdere stukken", "3 = meerdere vormen en stadia"] }
+        ]
+      }
+    ];
 
 const SCALE_LABELS = ["Sterk prod.", "Licht prod.", "Licht eco.", "Sterk eco."];
+
 
 let images = [];
 let scores = {};
@@ -962,7 +1012,7 @@ function selectImage(idx) {
       </div>
     </div>
     <div class="save-row">
-      <button class="save-btn" onclick="saveAndNext()">Opslaan &amp; volgende &#8594;</button>
+      <button class="save-btn" onclick="saveAndNext()">Volgende &#8594;</button>
     </div>`;
 
   const unrealistic_sel = s.unrealistic ? ' active' : '';
@@ -986,7 +1036,7 @@ function selectImage(idx) {
     <div class="score-layout">
       <div class="image-col">
         <div class="preview-wrap">
-          <img class="preview-img" src="${img.url}" alt="${img.name}">
+          <img class="preview-img" src="${img.url}" alt="${img.name}" onclick="openImageViewer('${img.url}')" style="cursor: zoom-in;">
           <div class="img-nav">
             <div>
               <div class="img-nav-name">${img.name}</div>
@@ -1081,8 +1131,50 @@ function closeProgress() {
   document.getElementById('progress-overlay').classList.remove('show');
 }
 
+function showIndicatorInfo() {
+  const list = document.getElementById('info-list');
+  list.innerHTML = '';
+  ALL_INDICATORS.forEach(ind => {
+    let score_desc = '';
+    ind.scores.forEach(score =>{
+       score_desc += `<p><b>${score}</b></p>`;
+    })
+
+    const div = document.createElement('div');
+    div.className = 'progress-item';
+    div.innerHTML = `
+      <div>
+        <p><b>${ind.code} - ${ind.name}</b></p>
+        <p>${ind.desc}</p>
+        <div style="margin-top: 5px;">
+            ${score_desc}
+        </div>
+      </div>
+      `;
+    list.appendChild(div);
+  });
+  document.getElementById('info-overlay').classList.add('show');
+}
+
+function closeIndicatorInfo() {
+  document.getElementById('info-overlay').classList.remove('show');
+}
+
+function openImageViewer(src) {
+  document.getElementById('full-image').src = src;
+  document.getElementById('image-viewer').style.display = 'flex';
+}
+
+function closeImageViewer() {
+  document.getElementById('image-viewer').style.display = 'none';
+}
+
 document.addEventListener('keydown', e => {
   if (e.target.tagName === 'TEXTAREA') return;
+  if (document.getElementById('image-viewer').style.display === 'flex' && e.key === 'Escape') {
+    closeImageViewer();
+    return;
+  }
   if (e.key === 'ArrowRight' || e.key === 'ArrowDown') selectImage(currentIdx + 1);
   if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') selectImage(currentIdx - 1);
   if (e.key >= '0' && e.key <= '3') {
