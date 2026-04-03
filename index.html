@@ -349,7 +349,7 @@ body {
 /* SCORING AREA */
 .score-layout {
   display: grid;
-  grid-template-columns: 1fr 340px;
+  grid-template-columns: auto 1fr;
   min-height: 100%;
 }
 
@@ -359,6 +359,7 @@ body {
   display: flex;
   flex-direction: column;
   gap: 14px;
+  width: fit-content;
 }
 
 .preview-wrap {
@@ -555,12 +556,28 @@ body {
   font-weight: 500;
 }
 
-.indicator-row {
-  padding: 11px 12px;
-  border-bottom: 1px solid var(--border-soft);
+.indicator-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0 1px;
+  background: var(--border-soft);
+  border: 1px solid var(--border-soft);
+  border-top: none;
+  border-bottom: none;
 }
 
-.indicator-row:last-child { border-bottom: none; }
+.indicator-row {
+  padding: 11px 12px;
+  background: var(--surface);
+}
+
+.indicator-row:nth-child(odd) {
+  border-right: 1px solid var(--border-soft);
+}
+
+.indicator-row:nth-last-child(-n+2) {
+  border-bottom: none;
+}
 
 .ind-header {
   display: flex;
@@ -826,7 +843,7 @@ function loadImages(input) {
   files.forEach(f => {
     if (images.find(i => i.name === f.name)) return;
     images.push({ name: f.name, url: URL.createObjectURL(f) });
-    scores[f.name] = scores[f.name] || { vals: {}, realism: null, notes: "" };
+    scores[f.name] = scores[f.name] || { vals: {}, unrealistic: false };
     added++;
   });
   images.sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true }));
@@ -842,8 +859,8 @@ function loadImages(input) {
 function countFilled(name) {
   const s = scores[name];
   const ind = Object.keys(s.vals).length;
-  const r = s.realism !== null ? 1 : 0;
-  return ind + r;
+  // Realism is always "filled"
+  return ind + 1;
 }
 
 function isScoredFully(name) {
@@ -890,6 +907,8 @@ function updateStats() {
   document.getElementById('stat-left').textContent = total - done;
 }
 
+const ALL_INDICATORS = INDICATORS.flatMap(g => g.items);
+
 function selectImage(idx) {
   if (idx < 0 || idx >= images.length) return;
   currentIdx = idx;
@@ -904,28 +923,29 @@ function selectImage(idx) {
   const panel = document.getElementById('main-panel');
 
   // Build score col HTML
-  let scoreColHTML = '';
-  INDICATORS.forEach(group => {
-    scoreColHTML += `<div class="group-card">
-      <div class="group-head">${group.group}</div>`;
-    group.items.forEach(ind => {
-      scoreColHTML += `<div class="indicator-row">
-        <div class="ind-header">
-          <span class="ind-name">${ind.name}</span>
-          <span class="ind-code">${ind.code}</span>
-        </div>
-        <div class="ind-desc">${ind.desc}</div>
-        <div class="score-btns">`;
-      [0, 1, 2, 3].forEach(v => {
-        const sel = s.vals[ind.code] === v ? ` sel-${v}` : '';
-        scoreColHTML += `<button class="sc-btn${sel}" onclick="setScore('${img.name}','${ind.code}',${v})">
-          ${v}<span class="sc-sub">${SCALE_LABELS[v]}</span>
-        </button>`;
-      });
-      scoreColHTML += `</div></div>`;
+  let scoreColHTML = `
+    <div class="group-card">
+      <div class="group-head">Indicatoren</div>
+      <div class="indicator-grid">`;
+  
+  ALL_INDICATORS.forEach(ind => {
+    scoreColHTML += `<div class="indicator-row">
+      <div class="ind-header">
+        <span class="ind-name">${ind.name}</span>
+        <span class="ind-code">${ind.code}</span>
+      </div>
+      <div class="ind-desc">${ind.desc}</div>
+      <div class="score-btns">`;
+    [0, 1, 2, 3].forEach(v => {
+      const sel = s.vals[ind.code] === v ? ` sel-${v}` : '';
+      scoreColHTML += `<button class="sc-btn${sel}" onclick="setScore('${img.name}','${ind.code}',${v})">
+        ${v}<span class="sc-sub">${SCALE_LABELS[v]}</span>
+      </button>`;
     });
-    scoreColHTML += `</div>`;
+    scoreColHTML += `</div></div>`;
   });
+
+  scoreColHTML += `</div></div>`;
 
   const total = calcTotal(img.name);
   const pct = Math.round((total / 18) * 100);
@@ -945,9 +965,22 @@ function selectImage(idx) {
       <button class="save-btn" onclick="saveAndNext()">Opslaan &amp; volgende &#8594;</button>
     </div>`;
 
-  // Realism buttons
-  const r0sel = s.realism === 0 ? ' active' : '';
-  const r1sel = s.realism === 1 ? ' active' : '';
+  const unrealistic_sel = s.unrealistic ? ' active' : '';
+
+  const realismCardHTML = `
+    <div class="realism-card">
+      <div class="realism-head">
+        <span class="realism-label">R1 — Realisme</span>
+      </div>
+      <div class="realism-body">
+        <div class="realism-desc">Markeer indien het beeld een onrealistische weergave is (abstract, geschilderd, etc.).</div>
+        <div class="realism-btns">
+          <button class="real-btn real-btn-0${unrealistic_sel}" onclick="toggleUnrealistic('${img.name}')">
+            Onrealistisch
+          </button>
+        </div>
+      </div>
+    </div>`;
 
   panel.innerHTML = `
     <div class="score-layout">
@@ -966,31 +999,9 @@ function selectImage(idx) {
           </div>
         </div>
 
-        <div class="realism-card">
-          <div class="realism-head">
-            <span class="realism-label">R1 — Realisme</span>
-            <span class="realism-code">binair 0/1</span>
-          </div>
-          <div class="realism-body">
-            <div class="realism-desc">Is dit beeld een realistische weergave van een bos, of is het abstract / geschilderd / schematisch?</div>
-            <div class="realism-btns">
-              <button class="real-btn real-btn-0${r0sel}" onclick="setRealism('${img.name}', 0)">
-                0 <span class="real-sub">Abstract / onrealistisch</span>
-              </button>
-              <button class="real-btn real-btn-1${r1sel}" onclick="setRealism('${img.name}', 1)">
-                1 <span class="real-sub">Realistisch</span>
-              </button>
-            </div>
-          </div>
-        </div>
-
-        <div class="notes-card">
-          <div class="notes-head">Opmerkingen</div>
-          <textarea class="notes-field" placeholder="Bijv. fauna aanwezig, romantisering, geografische context, bijzonderheden..." oninput="scores['${img.name}'].notes = this.value">${s.notes}</textarea>
-        </div>
       </div>
 
-      <div class="score-col">${scoreColHTML}</div>
+      <div class="score-col">${realismCardHTML}${scoreColHTML}</div>
     </div>`;
 }
 
@@ -1002,6 +1013,12 @@ function setScore(name, code, val) {
 
 function setRealism(name, val) {
   scores[name].realism = val;
+  selectImage(currentIdx);
+  updateStats();
+}
+
+function toggleUnrealistic(name) {
+  scores[name].unrealistic = !scores[name].unrealistic;
   selectImage(currentIdx);
   updateStats();
 }
@@ -1023,15 +1040,14 @@ function getPromptGroup(name) {
 
 function exportCSV() {
   const allCodes = ['A1', 'A2', 'A3', 'A4', 'B1', 'C1'];
-  let csv = 'bestandsnaam,promptgroep,' + allCodes.join(',') + ',totaal_ecologisch,R1_realisme,opmerkingen\n';
+  let csv = 'bestandsnaam,promptgroep,' + allCodes.join(',') + ',totaal_ecologisch,realisme\n';
   images.forEach(img => {
     const s = scores[img.name];
     const vals = allCodes.map(c => s.vals[c] !== undefined ? s.vals[c] : '');
     const total = vals.every(v => v !== '') ? vals.reduce((a, b) => a + Number(b), 0) : '';
-    const real = s.realism !== null ? s.realism : '';
-    const note = (s.notes || '').replace(/"/g, '""').replace(/\n/g, ' ');
+    const real = s.unrealistic ? 'onrealistisch' : 'realistisch';
     const group = getPromptGroup(img.name);
-    csv += `"${img.name}","${group}",${vals.join(',')},${total},${real},"${note}"\n`;
+    csv += `"${img.name}","${group}",${vals.join(',')},${total},${real}\n`;
   });
   dl('bosbeelden_scores.csv', csv, 'text/csv;charset=utf-8;');
 }
