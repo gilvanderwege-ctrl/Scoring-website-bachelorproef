@@ -325,16 +325,14 @@ body {
 /* MAIN PANEL */
 .main-panel {
   flex: 1;
-  overflow-y: auto;
+  overflow: hidden;
   padding: 0;
   background: var(--bg);
+  display: flex;
 }
 
-.main-panel::-webkit-scrollbar { width: 5px; }
-.main-panel::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
-
 .empty-msg {
-  height: 100%;
+  flex: 1;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -348,17 +346,21 @@ body {
 
 /* SCORING AREA */
 .score-layout {
-  display: grid;
-  grid-template-columns: 1fr 340px;
-  min-height: 100%;
+  display: flex;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
 }
 
 .image-col {
-  padding: 20px;
+  flex: 1;
+  padding: 16px;
   border-right: 1px solid var(--border);
   display: flex;
   flex-direction: column;
-  gap: 14px;
+  gap: 12px;
+  overflow: hidden;
+  min-width: 0;
 }
 
 .preview-wrap {
@@ -366,15 +368,19 @@ body {
   border: 1px solid var(--border);
   border-radius: 3px;
   overflow: hidden;
-  position: relative;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
 }
 
 .preview-img {
   width: 100%;
-  max-height: 420px;
+  flex: 1;
   object-fit: contain;
   display: block;
   background: var(--surface2);
+  min-height: 0;
 }
 
 .img-nav {
@@ -441,13 +447,13 @@ body {
   border-radius: 99px;
 }
 
-.realism-body { padding: 12px 14px; }
+.realism-body { padding: 8px 12px; }
 
 .realism-desc {
-  font-size: 12px;
+  font-size: 11px;
   color: var(--text-muted);
-  margin-bottom: 12px;
-  line-height: 1.5;
+  margin-bottom: 8px;
+  line-height: 1.4;
 }
 
 .realism-btns { display: flex; gap: 8px; }
@@ -518,12 +524,12 @@ body {
   width: 100%;
   border: none;
   background: var(--surface);
-  padding: 10px 14px;
+  padding: 8px 12px;
   font-family: var(--mono);
-  font-size: 12px;
+  font-size: 11px;
   color: var(--text);
-  resize: vertical;
-  min-height: 70px;
+  resize: none;
+  height: 52px;
   outline: none;
 }
 
@@ -531,11 +537,17 @@ body {
 
 /* SCORE COL */
 .score-col {
-  padding: 20px 16px;
+  width: 320px;
+  flex-shrink: 0;
+  padding: 14px;
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 10px;
+  overflow-y: auto;
+  height: 100%;
 }
+.score-col::-webkit-scrollbar { width: 4px; }
+.score-col::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
 
 .group-card {
   background: var(--surface);
@@ -770,7 +782,7 @@ body {
 
     <!-- MAIN PANEL -->
     <div class="main-panel" id="main-panel">
-      <div class="empty-msg">
+      <div class="empty-msg" style="flex:1">
         <div class="arrow">&#8592;</div>
         <div>Kies een beeld links om te beginnen</div>
       </div>
